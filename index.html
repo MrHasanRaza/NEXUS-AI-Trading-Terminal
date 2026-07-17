@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS • AI Trading Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Space+Grotesk:wght@500;600&amp;display=swap');
+        
+        :root {
+            --neon-blue: #00f5ff;
+            --neon-purple: #a855f7;
+            --neon-cyan: #22d3ee;
+        }
+        
+        .glass {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(148, 163, 184, 0.15);
+        }
+        
+        .neon-text {
+            text-shadow: 0 0 10px rgb(34 211 238),
+                        0 0 20px rgb(34 211 238);
+        }
+        
+        .sidebar-link {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .sidebar-link:hover {
+            transform: translateX(8px);
+            color: rgb(34 211 238);
+        }
+        
+        .active {
+            background: linear-gradient(90deg, rgba(34, 211, 238, 0.15), transparent);
+            border-left: 4px solid rgb(34 211 238);
+        }
+        
+        .price-ticker {
+            animation: ticker 4s linear infinite;
+        }
+        
+        @keyframes ticker {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+        
+        .glow {
+            box-shadow: 0 0 25px -5px rgb(34 211 238),
+                        0 0 10px -5px rgb(168 85 247);
+        }
+        
+        .mini-chart {
+            height: 60px;
+        }
+        
+        .scan-line {
+            position: relative;
+        }
+        
+        .scan-line::after {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(transparent, rgba(34, 211, 238, 0.8), transparent);
+            animation: scan 4s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { top: -100%; }
+            100% { top: 300%; }
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-slate-200 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- SIDEBAR -->
+        <div class="w-64 bg-zinc-900 border-r border-slate-800 flex flex-col">
+            <div class="p-6 border-b border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-2xl flex items-center justify-center text-xl font-bold">N</div>
+                    <div>
+                        <span class="text-3xl font-semibold tracking-tighter neon-text">NEXUS</span>
+                    </div>
+                </div>
+                <p class="text-xs text-slate-500 mt-1 pl-1">AI TRADING OS v4.2</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+                <a onclick="navigateTo('dashboard')" class="sidebar-link active flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-dashboard">
+                    <i class="fa-solid fa-house w-5"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a onclick="navigateTo('signals')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-signals">
+                    <i class="fa-solid fa-bolt w-5"></i>
+                    <span>AI Signals</span>
+                </a>
+                <a onclick="navigateTo('market')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-market">
+                    <i class="fa-solid fa-chart-line w-5"></i>
+                    <span>Live Market</span>
+                </a>
+                <a onclick="navigateTo('strategies')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-strategies">
+                    <i class="fa-solid fa-chess-knight w-5"></i>
+                    <span>Strategies</span>
+                </a>
+                <a onclick="navigateTo('history')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-history">
+                    <i class="fa-solid fa-clock-rotate-left w-5"></i>
+                    <span>Trade History</span>
+                </a>
+                <a onclick="navigateTo('risk')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-risk">
+                    <i class="fa-solid fa-shield-halved w-5"></i>
+                    <span>Risk Manager</span>
+                </a>
+                <a onclick="navigateTo('assistant')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-assistant">
+                    <i class="fa-solid fa-robot w-5"></i>
+                    <span>AI Assistant</span>
+                </a>
+                <a onclick="navigateTo('settings')" class="sidebar-link flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-medium cursor-pointer" id="nav-settings">
+                    <i class="fa-solid fa-gear w-5"></i>
+                    <span>Settings</span>
+                </a>
+            </div>
+            
+            <div class="p-4 border-t border-slate-800">
+                <div class="glass rounded-3xl p-4 text-xs">
+                    <div class="flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                            <span class="text-emerald-400">AI ONLINE</span>
+                        </div>
+                        <span class="text-slate-500">98.7%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- MAIN CONTENT -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            
+            <!-- TOP NAV -->
+            <div class="h-16 bg-zinc-900 border-b border-slate-800 px-8 flex items-center justify-between">
+                <div class="flex items-center gap-8">
+                    <div onclick="toggleSidebar()" class="lg:hidden cursor-pointer">
+                        <i class="fa-solid fa-bars text-2xl"></i>
+                    </div>
+                    <div class="relative w-80">
+                        <input id="search-input" 
+                               type="text" 
+                               placeholder="Search assets, signals..." 
+                               class="w-full bg-zinc-800 border border-slate-700 focus:border-cyan-400 rounded-3xl py-3 px-5 text-sm outline-none transition-all">
+                        <i class="fa-solid fa-magnifying-glass absolute right-5 top-3.5 text-slate-400"></i>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-8">
+                    <!-- Balance -->
+                    <div>
+                        <div class="text-xs text-slate-400">TOTAL BALANCE</div>
+                        <div class="text-2xl font-semibold text-white" id="balance">$124,892.45</div>
+                    </div>
+                    
+                    <!-- P&amp;L -->
+                    <div>
+                        <div class="text-xs text-slate-400">TODAY'S P&amp;L</div>
+                        <div class="flex items-center gap-1 text-emerald-400" id="pnl">
+                            <span class="text-2xl font-semibold">+$2,847.30</span>
+                            <span class="text-sm">+2.34%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="h-9 w-px bg-slate-700"></div>
+                    
+                    <!-- AI Status -->
+                    <div class="flex items-center gap-3">
+                        <div class="px-4 py-1.5 bg-emerald-500/10 text-emerald-400 text-xs font-medium rounded-3xl flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+                            AI ONLINE
+                        </div>
+                    </div>
+                    
+                    <!-- Avatar -->
+                    <div class="flex items-center gap-3 cursor-pointer">
+                        <div class="text-right">
+                            <div class="text-sm font-medium">Alex Rivera</div>
+                            <div class="text-xs text-slate-500">Pro Trader</div>
+                        </div>
+                        <div class="w-9 h-9 bg-gradient-to-br from-purple-500 to-cyan-400 rounded-2xl flex items-center justify-center text-lg font-bold">AR</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- CONTENT AREA -->
+            <div class="flex-1 overflow-auto p-8" id="main-content">
+                
+                <!-- DASHBOARD SECTION -->
+                <div id="section-dashboard">
+                    <!-- HERO -->
+                    <div class="scan-line relative mb-12 rounded-3xl overflow-hidden h-64 bg-gradient-to-br from-slate-900 via-zinc-900 to-slate-900 border border-cyan-500/30 flex items-center">
+                        <div class="absolute inset-0 bg-[radial-gradient(at_center,#22d3ee_0%,transparent_70%)] opacity-20"></div>
+                        <div class="relative z-10 px-12">
+                            <div class="uppercase tracking-[4px] text-cyan-400 text-sm mb-2 font-mono">NEURAL TRADING INTELLIGENCE</div>
+                            <h1 class="text-6xl font-bold tracking-tighter neon-text">AI POWERED</h1>
+                            <h1 class="text-6xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">MARKET DOMINANCE</h1>
+                            <p class="mt-4 max-w-md text-slate-400">Real-time signals • Predictive analytics • Autonomous execution</p>
+                            <button onclick="navigateTo('signals')" 
+                                    class="mt-8 px-8 py-4 bg-white text-zinc-900 hover:bg-cyan-400 hover:text-white transition-all font-semibold rounded-2xl flex items-center gap-3 group">
+                                GENERATE SIGNAL
+                                <i class="fa-solid fa-arrow-right group-active:rotate-45 transition"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="absolute bottom-6 right-8 flex gap-6 text-xs">
+                            <div class="glass px-6 py-3 rounded-3xl">
+                                <div class="text-emerald-400">WIN RATE</div>
+                                <div class="text-4xl font-mono font-bold" id="winrate">87.4%</div>
+                            </div>
+                            <div class="glass px-6 py-3 rounded-3xl">
+                                <div class="text-purple-400">AVG RETURN</div>
+                                <div class="text-4xl font-mono font-bold">+4.2%</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- LIVE MARKET CARDS -->
+                    <div class="mb-12">
+                        <div class="flex justify-between items-end mb-6">
+                            <h2 class="text-3xl font-semibold">Live Markets</h2>
+                            <div onclick="refreshMarkets()" class="text-cyan-400 text-sm flex items-center gap-2 cursor-pointer hover:text-cyan-300">
+                                <i class="fa-solid fa-rotate"></i>
+                                <span>REFRESH</span>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4" id="market-cards">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- QUICK SIGNALS + GAUGES -->
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        <!-- Signal Generator -->
+                        <div class="lg:col-span-5 glass rounded-3xl p-8">
+                            <h3 class="text-xl font-semibold mb-6 flex items-center gap-3">
+                                <i class="fa-solid fa-wand-magic-sparkles text-cyan-400"></i>
+                                INSTANT AI SIGNAL
+                            </h3>
+                            
+                            <div class="grid grid-cols-2 gap-4 mb-8">
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-2">ASSET</label>
+                                    <select id="asset-select" class="w-full bg-zinc-800 border border-slate-700 rounded-2xl px-4 py-4 text-white">
+                                        <option>EUR/USD</option>
+                                        <option>GBP/USD</option>
+                                        <option>BTC/USD</option>
+                                        <option>ETH/USD</option>
+                                        <option>XAU/USD</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-slate-400 mb-2">TIMEFRAME</label>
+                                    <select id="tf-select" class="w-full bg-zinc-800 border border-slate-700 rounded-2xl px-4 py-4 text-white">
+                                        <option>5m</option>
+                                        <option>15m</option>
+                                        <option>1H</option>
+                                        <option>4H</option>
+                                        <option>1D</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <button onclick="generateSignal()" 
+                                    class="w-full py-6 bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-300 hover:to-purple-400 text-zinc-950 font-bold text-xl rounded-3xl transition-all active:scale-95">
+                                ANALYZE &amp; GENERATE SIGNAL
+                            </button>
+                            
+                            <div id="signal-result" class="mt-8 hidden">
+                                <!-- Populated by JS -->
+                            </div>
+                        </div>
+                        
+                        <!-- Gauges -->
+                        <div class="lg:col-span-7 glass rounded-3xl p-8">
+                            <h3 class="text-xl font-semibold mb-6">Market Sentiment</h3>
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-8">
+                                <div class="text-center">
+                                    <div class="relative mx-auto w-32 h-32">
+                                        <svg class="w-full h-full -rotate-90" viewBox="0 0 42 42">
+                                            <circle cx="21" cy="21" r="15" fill="none" stroke="#27272a" stroke-width="6"></circle>
+                                            <circle id="fear-greed-circle" cx="21" cy="21" r="15" fill="none" stroke="#22d3ee" stroke-width="6" stroke-dasharray="94.2" stroke-dashoffset="23.55" stroke-linecap="round"></circle>
+                                        </svg>
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <div id="fear-greed-value" class="text-5xl font-bold text-cyan-400">72</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-sm mt-3 text-slate-400">FEAR &amp; GREED</div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between text-xs mb-2">
+                                        <span>BULL POWER</span>
+                                        <span id="bull-val">84%</span>
+                                    </div>
+                                    <div class="h-3 bg-zinc-800 rounded-3xl overflow-hidden">
+                                        <div id="bull-bar" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 w-[84%]"></div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <div class="flex justify-between text-xs mb-2">
+                                        <span>BEAR POWER</span>
+                                        <span id="bear-val">16%</span>
+                                    </div>
+                                    <div class="h-3 bg-zinc-800 rounded-3xl overflow-hidden">
+                                        <div id="bear-bar" class="h-full bg-gradient-to-r from-rose-400 to-orange-400 w-[16%]"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI SIGNALS SECTION -->
+                <div id="section-signals" class="hidden">
+                    <h2 class="text-4xl font-bold mb-8">AI Signals</h2>
+                    <div id="all-signals" class="space-y-6">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+                
+                <!-- LIVE MARKET SECTION -->
+                <div id="section-market" class="hidden">
+                    <h2 class="text-4xl font-bold mb-8">Market Overview</h2>
+                    <div class="glass rounded-3xl p-8">
+                        <canvas id="market-chart" height="120"></canvas>
+                    </div>
+                </div>
+                
+                <!-- TRADE HISTORY -->
+                <div id="section-history" class="hidden">
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-4xl font-bold">Trade History</h2>
+                        <input id="history-search" 
+                               onkeyup="filterHistory()"
+                               type="text" 
+                               placeholder="Filter trades..." 
+                               class="bg-zinc-900 border border-slate-700 px-5 py-3 rounded-3xl w-80">
+                    </div>
+                    <table class="w-full" id="history-table">
+                        <thead>
+                            <tr class="border-b border-slate-700 text-left text-xs text-slate-400">
+                                <th class="pb-4">DATE</th>
+                                <th class="pb-4">ASSET</th>
+                                <th class="pb-4">DIRECTION</th>
+                                <th class="pb-4">ENTRY</th>
+                                <th class="pb-4">EXIT</th>
+                                <th class="pb-4">P&amp;L</th>
+                                <th class="pb-4">STATUS</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-body" class="text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- AI ASSISTANT -->
+                <div id="section-assistant" class="hidden flex flex-col h-full">
+                    <h2 class="text-4xl font-bold mb-6">NEXUS AI Assistant</h2>
+                    <div id="chat-window" class="flex-1 glass rounded-3xl p-6 overflow-auto mb-6 space-y-6">
+                        <!-- Messages added by JS -->
+                    </div>
+                    <div class="flex gap-3">
+                        <input id="chat-input" 
+                               type="text" 
+                               placeholder="Ask about any asset, strategy..." 
+                               class="flex-1 bg-zinc-900 border border-slate-700 px-6 py-5 rounded-3xl outline-none focus:border-purple-400"
+                               onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                        <button onclick="sendChatMessage()" 
+                                class="px-8 bg-purple-600 hover:bg-purple-500 rounded-3xl">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- SETTINGS -->
+                <div id="section-settings" class="hidden">
+                    <h2 class="text-4xl font-bold mb-10">Settings</h2>
+                    <div class="max-w-md space-y-8">
+                        <div class="glass p-8 rounded-3xl">
+                            <h3 class="font-medium mb-6">Appearance</h3>
+                            <div class="flex justify-between items-center">
+                                <span>Dark Theme</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" checked class="sr-only peer" onchange="toggleTheme()">
+                                    <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-cyan-400 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-400"></div>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="glass p-8 rounded-3xl">
+                            <h3 class="font-medium mb-6">Notifications</h3>
+                            <div class="space-y-6">
+                                <div class="flex justify-between">
+                                    <span>Signal Alerts</span>
+                                    <input type="checkbox" checked class="toggle">
+                                </div>
+                                <div class="flex justify-between">
+                                    <span>Price Alerts</span>
+                                    <input type="checkbox" checked class="toggle">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TOAST -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 bg-zinc-800 border border-cyan-400 text-cyan-400 px-6 py-4 rounded-3xl shadow-2xl flex items-center gap-3">
+        <i class="fa-solid fa-circle-check"></i>
+        <span id="toast-text"></span>
+    </div>
+    
+    <script>
+        // Tailwind script already included via CDN
+        
+        let currentSection = 'dashboard';
+        let marketData = [];
+        let tradeHistory = [];
+        let charts = {};
+        
+        function initTailwind() {
+            // Already configured via CDN
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').textContent = message;
+            toast.classList.remove('hidden');
+            toast.style.transform = 'translateY(0)';
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateY(100px)';
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 2800);
+        }
+        
+        function navigateTo(section) {
+            // Hide all sections
+            document.querySelectorAll('#main-content > div').forEach(div => {
+                div.classList.add('hidden');
+            });
+            
+            // Show target
+            const target = document.getElementById(`section-${section}`);
+            if (target) target.classList.remove('hidden');
+            
+            // Update active nav
+            document.querySelectorAll('.sidebar-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.id === `nav-${section}`) link.classList.add('active');
+            });
+            
+            currentSection = section;
+            
+            if (section === 'market') {
+                setTimeout(initMarketChart, 100);
+            }
+        }
+        
+        // Generate fake market data
+        function generateMarketData() {
+            const assets = [
+                { symbol: 'EUR/USD', price: 1.0924, change: 0.34, trend: 'up' },
+                { symbol: 'GBP/USD', price: 1.3128, change: -0.12, trend: 'down' },
+                { symbol: 'USD/JPY', price: 158.74, change: 0.87, trend: 'up' },
+                { symbol: 'BTC/USD', price: 68245, change: 1.45, trend: 'up' },
+                { symbol: 'ETH/USD', price: 3482.5, change: -0.65, trend: 'down' },
+                { symbol: 'XAU/USD', price: 2438.90, change: 0.72, trend: 'up' },
+                { symbol: 'USOIL', price: 81.45, change: -1.2, trend: 'down' }
+            ];
+            
+            marketData = assets;
+            renderMarketCards();
+        }
+        
+        function renderMarketCards() {
+            const container = document.getElementById('market-cards');
+            container.innerHTML = '';
+            
+            marketData.forEach((asset, i) => {
+                const cardHTML = `
+                <div onclick="quickViewAsset('${asset.symbol}')" class="glass rounded-3xl p-5 cursor-pointer hover:scale-105 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-mono font-bold text-lg">${asset.symbol}</div>
+                            <div class="text-3xl font-semibold mt-2">${asset.price.toLocaleString()}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="${asset.change > 0 ? 'text-emerald-400' : 'text-rose-400'} text-xl font-medium">${asset.change > 0 ? '+' : ''}${asset.change}%</div>
+                            <div class="text-xs text-slate-500 mt-1">LIVE</div>
+                        </div>
+                    </div>
+                    <div class="mini-chart mt-6">
+                        <canvas id="mini-${i}" width="200" height="60"></canvas>
+                    </div>
+                </div>`;
+                
+                container.innerHTML += cardHTML;
+            });
+            
+            // Render mini charts after DOM update
+            setTimeout(() => {
+                marketData.forEach((_, i) => {
+                    const ctx = document.getElementById(`mini-${i}`);
+                    if (ctx) {
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: Array(12).fill(''),
+                                datasets: [{
+                                    data: Array.from({length: 12}, () => Math.random() * 100 + 20),
+                                    borderColor: '#22d3ee',
+                                    borderWidth: 2.5,
+                                    tension: 0.4,
+                                    pointRadius: 0
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                                scales: { x: { display: false }, y: { display: false } },
+                                elements: { line: { borderJoinStyle: 'round' } }
+                            }
+                        });
+                    }
+                });
+            }, 50);
+        }
+        
+        function quickViewAsset(symbol) {
+            showToast(`Opening live chart for ${symbol}`);
+            navigateTo('market');
+        }
+        
+        function refreshMarkets() {
+            generateMarketData();
+            showToast('Market data refreshed');
+        }
+        
+        function generateSignal() {
+            const asset = document.getElementById('asset-select').value;
+            const tf = document.getElementById('tf-select').value;
+            
+            const directions = ['BUY', 'SELL'];
+            const direction = directions[Math.floor(Math.random() * 2)];
+            
+            const entry = (Math.random() * 5000 + 1000).toFixed(2);
+            const sl = direction === 'BUY' ? (parseFloat(entry) - 45).toFixed(2) : (parseFloat(entry) + 45).toFixed(2);
+            const tp = direction === 'BUY' ? (parseFloat(entry) + 120).toFixed(2) : (parseFloat(entry) - 120).toFixed(2);
+            
+            const confidence = Math.floor(Math.random() * 35) + 65;
+            
+            const resultHTML = `
+                <div class="border border-cyan-400/30 bg-zinc-950/70 rounded-3xl p-7">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="px-4 py-1 text-xs font-mono tracking-widest ${direction === 'BUY' ? 'bg-emerald-400 text-black' : 'bg-rose-400 text-white'} rounded-3xl">${direction}</span>
+                            <span class="ml-4 text-2xl font-mono">${asset}</span>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-400">CONFIDENCE</div>
+                            <div class="text-4xl font-bold text-cyan-400">${confidence}%</div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-3 gap-6 mt-10">
+                        <div>
+                            <div class="text-xs text-slate-400">ENTRY</div>
+                            <div class="font-mono text-2xl">${entry}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400">STOP LOSS</div>
+                            <div class="font-mono text-2xl text-rose-400">${sl}</div>
+                        </div>
+                        <div>
+                            <div class="text-xs text-slate-400">TAKE PROFIT</div>
+                            <div class="font-mono text-2xl text-emerald-400">${tp}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-8 pt-6 border-t border-slate-700 text-xs flex justify-between">
+                        <div>R:R <span class="font-medium">1:2.8</span></div>
+                        <div>EXPIRY <span class="font-medium">${tf}</span></div>
+                        <div class="text-emerald-400">HIGH PROBABILITY</div>
+                    </div>
+                </div>`;
+            
+            const container = document.getElementById('signal-result');
+            container.innerHTML = resultHTML;
+            container.classList.remove('hidden');
+            
+            // Save to history
+            saveToHistory(asset, direction, parseFloat(entry), parseFloat(tp));
+            
+            showToast(`${direction} signal generated for ${asset}`);
+        }
+        
+        function saveToHistory(asset, direction, entry, tp) {
+            const trade = {
+                date: new Date().toLocaleDateString('en-US', {month:'short', day:'numeric'}),
+                asset: asset,
+                direction: direction,
+                entry: entry.toFixed(2),
+                exit: (tp * (Math.random() * 0.03 + 1.015)).toFixed(2),
+                pnl: (Math.random() * 420 + 80).toFixed(2),
+                status: Math.random() > 0.3 ? 'WON' : 'LOST'
+            };
+            
+            tradeHistory.unshift(trade);
+            if (tradeHistory.length > 30) tradeHistory.pop();
+            
+            localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+            renderHistory();
+        }
+        
+        function renderHistory() {
+            const tbody = document.getElementById('history-body');
+            tbody.innerHTML = '';
+            
+            tradeHistory.forEach(trade => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-slate-800 hover:bg-zinc-900 transition-colors';
+                row.innerHTML = `
+                    <td class="py-6">${trade.date}</td>
+                    <td class="py-6 font-medium">${trade.asset}</td>
+                    <td class="py-6">
+                        <span class="inline-block px-5 py-1 text-xs font-bold rounded-3xl ${trade.direction === 'BUY' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}">
+                            ${trade.direction}
+                        </span>
+                    </td>
+                    <td class="py-6 font-mono">${trade.entry}</td>
+                    <td class="py-6 font-mono">${trade.exit}</td>
+                    <td class="py-6 ${parseFloat(trade.pnl) > 0 ? 'text-emerald-400' : 'text-rose-400'} font-medium">$${trade.pnl}</td>
+                    <td class="py-6">
+                        <span class="px-4 py-1 text-xs ${trade.status === 'WON' ? 'bg-emerald-400 text-black' : 'bg-rose-400 text-white'} rounded-3xl">${trade.status}</span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+        
+        function filterHistory() {
+            const term = document.getElementById('history-search').value.toLowerCase();
+            const rows = document.querySelectorAll('#history-body tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        }
+        
+        function initMarketChart() {
+            const ctx = document.getElementById('market-chart');
+            if (!ctx) return;
+            
+            if (charts.mainMarket) charts.mainMarket.destroy();
+            
+            charts.mainMarket = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['00:00', '04:00', '08:00', '12:00', '16:00', '20:00', 'Now'],
+                    datasets: [
+                        {
+                            label: 'BTC/USD',
+                            data: [67200, 67500, 67100, 68900, 68400, 69100, 68245],
+                            borderColor: '#a855f7',
+                            tension: 0.35,
+                            borderWidth: 3
+                        },
+                        {
+                            label: 'EUR/USD',
+                            data: [1.085, 1.088, 1.091, 1.094, 1.092, 1.093, 1.0924],
+                            borderColor: '#22d3ee',
+                            tension: 0.35,
+                            borderWidth: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#e2e8f0', usePointStyle: true } }
+                    },
+                    scales: {
+                        y: { grid: { color: '#334155' }, ticks: { color: '#64748b' } },
+                        x: { grid: { color: '#334155' }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+        
+        // AI Assistant Chat
+        let chatMessages = [];
+        
+        function addChatMessage(text, isUser = false) {
+            const chatWindow = document.getElementById('chat-window');
+            
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `flex ${isUser ? 'justify-end' : 'justify-start'}`;
+            
+            if (isUser) {
+                msgDiv.innerHTML = `
+                    <div class="max-w-[75%] bg-purple-600 text-white px-6 py-4 rounded-3xl rounded-br-none">
+                        ${text}
+                    </div>
+                `;
+            } else {
+                msgDiv.innerHTML = `
+                    <div class="max-w-[75%] glass px-6 py-4 rounded-3xl rounded-bl-none">
+                        ${text}
+                    </div>
+                `;
+            }
+            
+            chatWindow.appendChild(msgDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        }
+        
+        function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            addChatMessage(message, true);
+            input.value = '';
+            
+            // Simulate AI thinking
+            setTimeout(() => {
+                const responses = [
+                    "Based on current momentum, BTC looks bullish in the short term with strong support at $67,800.",
+                    "EUR/USD is consolidating. I recommend waiting for a breakout above 1.0980 before entering.",
+                    "The Fear & Greed Index is at 71 - greed is rising but not extreme. Good time for selective longs.",
+                    "My models show 82% probability of continuation in the current uptrend for Gold.",
+                    "Risk of pullback in ETH. Consider tightening stops on existing positions."
+                ];
+                
+                const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+                addChatMessage(randomResponse);
+            }, 850);
+        }
+        
+        // Simulate live price updates
+        function simulateLiveUpdates() {
+            setInterval(() => {
+                if (marketData.length === 0) return;
+                
+                // Randomly update one price
+                const idx = Math.floor(Math.random() * marketData.length);
+                const change = (Math.random() * 0.8 - 0.4).toFixed(2);
+                marketData[idx].price = parseFloat((marketData[idx].price * (1 + parseFloat(change)/100)).toFixed(marketData[idx].symbol.includes('/') ? 4 : 0));
+                marketData[idx].change = parseFloat(change);
+                
+                renderMarketCards();
+            }, 3200);
+        }
+        
+        function toggleTheme() {
+            showToast("Theme updated (demo)");
+        }
+        
+        function toggleSidebar() {
+            showToast("Mobile sidebar coming soon");
+        }
+        
+        // Initialize everything
+        function initializeDashboard() {
+            // Tailwind ready
+            generateMarketData();
+            
+            // Load or init history
+            const savedHistory = localStorage.getItem('tradeHistory');
+            if (savedHistory) {
+                tradeHistory = JSON.parse(savedHistory);
+            } else {
+                tradeHistory = [
+                    { date: "Jul 16", asset: "BTC/USD", direction: "BUY", entry: "67120", exit: "68340", pnl: "1240", status: "WON" },
+                    { date: "Jul 15", asset: "EUR/USD", direction: "SELL", entry: "1.0945", exit: "1.0890", pnl: "380", status: "WON" }
+                ];
+                localStorage.setItem('tradeHistory', JSON.stringify(tradeHistory));
+            }
+            
+            renderHistory();
+            
+            // Welcome message in chat
+            setTimeout(() => {
+                if (document.getElementById('section-assistant').classList.contains('hidden') === false) {
+                    addChatMessage("Hello Alex. How can I help you trade today?");
+                } else {
+                    // Will show when user navigates
+                }
+            }, 1600);
+            
+            // Simulate price movement
+            simulateLiveUpdates();
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.metaKey && e.key === "k") {
+                    e.preventDefault();
+                    document.getElementById('search-input').focus();
+                }
+            });
+            
+            // Show dashboard by default
+            navigateTo('dashboard');
+            
+            showToast("Connected to NEXUS AI Engine");
+            
+            // Random signal every 45 seconds for demo
+            setInterval(() => {
+                if (Math.random() > 0.6 && currentSection === 'dashboard') {
+                    showToast("New AI Signal Available");
+                }
+            }, 45000);
+        }
+        
+        // Make functions globally available
+        window.navigateTo = navigateTo;
+        window.generateSignal = generateSignal;
+        window.refreshMarkets = refreshMarkets;
+        window.quickViewAsset = quickViewAsset;
+        window.sendChatMessage = sendChatMessage;
+        window.filterHistory = filterHistory;
+        window.toggleTheme = toggleTheme;
+        window.toggleSidebar = toggleSidebar;
+        
+        // Boot the app
+        window.onload = initializeDashboard;
+    </script>
+</body>
+</html>
